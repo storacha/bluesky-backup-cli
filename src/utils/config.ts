@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 export interface Config {
+  accounts: string[],
   bluesky?: {
     accessToken?: string;
     refreshToken?: string;
@@ -16,10 +17,13 @@ export interface Config {
 export const CONFIG_PATH = path.join(homedir(), ".bsky-backup-config.json");
 
 export const readConfig = (): Config => {
-  if (!existsSync(CONFIG_PATH)) return {};
-  return JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+  if (!existsSync(CONFIG_PATH)) return { accounts: [] };
+  const data = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+  return { accounts: [], ...data };
 };
 
 export const writeConfig = (config: Config) => {
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  const existing = readConfig();
+  const merged = { ...existing, ...config };
+  writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2));
 };
