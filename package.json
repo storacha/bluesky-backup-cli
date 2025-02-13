@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "esbuild ./src/index.ts --bundle --platform=node --outfile=dist/index.js --external:keytar"
+  },
+  "bin": {
+    "bsky-backup": "./dist/index.js"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +22,7 @@
     "@atproto/oauth-client-node": "^0.2.10",
     "axios": "^1.7.9",
     "commander": "^13.1.0",
+    "esbuild": "^0.25.0",
     "inquirer": "^12.4.1",
     "keytar": "^7.9.0"
   }

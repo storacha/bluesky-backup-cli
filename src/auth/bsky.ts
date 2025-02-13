@@ -39,7 +39,12 @@ export class BlueskyAuth {
 
       return session.data;
     } catch (error) {
-      throw new Error(`Authentication failed: ${(error as Error).message}`);
+      console.error(`Authentication failed: ${(error as Error).message}`);
+      console.log(`
+        Troubleshooting:
+        1. Ensure you're using an app password, not your main account password
+        2. Verify your handle format (kaf-lamed.bsky.social)
+        3. Check account status at https://bsky.app/settings`);
     }
   }
 
