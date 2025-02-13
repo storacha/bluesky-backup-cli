@@ -5,7 +5,7 @@ import { Command } from "commander";
 
 export const authCommands = (program: Command) => {
   program
-    .name("bsky-backups")
+    .name("bsky-backup")
     .description(chalk.cyan("✨ CLI tool for backing up Bluesky posts ✨"))
     .version("1.0.0");
 
@@ -39,11 +39,11 @@ export const authCommands = (program: Command) => {
   program.addHelpText(
     "afterAll",
     `\n${chalk.yellow.bold("Examples:")}
-    ${chalk.cyan("$ bsky-backups login")}      → Authenticate with Bluesky
-    ${chalk.cyan("$ bsky-backups logout")}     → Remove stored credentials
+    ${chalk.cyan("$ bsky-backup login")}      → Authenticate with Bluesky
+    ${chalk.cyan("$ bsky-backup logout")}     → Remove stored credentials
 
     ${chalk.green("For more details, use:")}
-    ${chalk.cyan("$ bsky-backups --help")}`,
+    ${chalk.cyan("$ bsky-backup --help")}`,
   );
 
   if (!process.argv.slice(2).length) {

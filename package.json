@@ -1,6 +1,6 @@
 {
   "name": "bsky-backups-cli",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -26,6 +26,7 @@
     "esbuild": "^0.25.0",
     "inquirer": "^12.4.1",
     "keytar": "^7.9.0",
-    "ora": "^8.2.0"
+    "ora": "^8.2.0",
+    "standard-version": "^9.5.0"
   }
 }
