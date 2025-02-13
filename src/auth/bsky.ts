@@ -1,7 +1,9 @@
 import keytar from "keytar";
-import { AtpAgent, AtpSessionData } from "@atproto/api";
+import { AtpAgent } from "@atproto/api";
 import { readConfig, writeConfig } from "../utils/config";
 import inquirer from "inquirer";
+import chalk from "chalk";
+import ora from "ora";
 
 const SERVICE_NAME = "bsky-backups-cli";
 
@@ -13,7 +15,7 @@ export class BlueskyAuth {
       {
         type: "input",
         name: "identifier",
-        message: "Enter your bluesky handle (e.g. kaf-lamed.bsky.social):",
+        message: "Enter your bluesky handle (e.g. user.bsky.social):",
       },
       {
         type: "password",
@@ -22,6 +24,7 @@ export class BlueskyAuth {
       },
     ]);
 
+    const spinner = ora("Logging in...").start();
     try {
       const session = await this.agent.login({ identifier, password });
 
@@ -37,21 +40,33 @@ export class BlueskyAuth {
         accounts: [...new Set([...config.accounts, session.data.did])],
       });
 
+      spinner.succeed(`Successfully logged in as ${session.data.handle}`);
       return session.data;
     } catch (error) {
-      console.error(`Authentication failed: ${(error as Error).message}`);
-      console.log(`
-        Troubleshooting:
-        1. Ensure you're using an app password, not your main account password
-        2. Verify your handle format (kaf-lamed.bsky.social)
-        3. Check account status at https://bsky.app/settings`);
+      spinner.fail(`Authentication failed: ${(error as Error).message}`);
+      console.log(chalk.yellow("  Troubleshooting:"));
+      console.log(
+        chalk.yellow("  1.") +
+          " Ensure you're using an app password, not your main account password",
+      );
+      console.log(
+        chalk.yellow("  2.") +
+          " Verify your handle format (e.g., " +
+          chalk.bgBlue("user.bsky.social") +
+          ")",
+      );
+      console.log(
+        chalk.yellow("  3.") +
+          " Check account status at: " +
+          chalk.blue("https://bsky.app/settings"),
+      );
+      throw error;
     }
   }
 
   async logout() {
     const config = readConfig();
     const accounts = config.accounts || [];
-
     if (accounts.length === 0) {
       console.log("No active sessions found");
       return;
@@ -67,12 +82,10 @@ export class BlueskyAuth {
     ]);
 
     await keytar.deletePassword(SERVICE_NAME, did);
-
     writeConfig({
       ...config,
       accounts: config.accounts.filter((d: string) => d !== did),
     });
-
     console.log(`Logged out of ${did}`);
   }
 }
