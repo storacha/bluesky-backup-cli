@@ -5,17 +5,36 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import ora from "ora";
 
-const SERVICE_NAME = "bsky-backups-cli";
+const SERVICE_NAME = "bsky-backup-cli";
 
 export class BlueskyAuth {
-  private agent = new AtpAgent({ service: "https://bsky.social" });
+  private agent: AtpAgent;
+  private serviceUrl: string;
+
+  constructor(serviceUrl?: string) {
+    const config = readConfig();
+    this.serviceUrl = serviceUrl || config.pdsUrl || "https://bsky.social";
+    this.agent = new AtpAgent({ service: this.serviceUrl });
+
+    // we should verify the PDS conncetion at this point
+    // if the --pds flag was used
+    this.agent.com.atproto.server.describeServer().catch(() => {
+      throw new Error(`Unable to connect to PDS at ${this.serviceUrl}`)
+    })
+  }
 
   async login() {
     const { identifier, password } = await inquirer.prompt([
       {
         type: "input",
         name: "identifier",
-        message: "Enter your bluesky handle (e.g. user.bsky.social):",
+        message: `Enter your bluesky handle (e.g. user.${new URL(this.serviceUrl).hostname}):`,
+        validate: (input: string) => {
+          const host = new URL(this.serviceUrl).hostname;
+          return input.endsWith(host) || input.includes(".")
+            ? true
+            : `Handle should be in format: user.${host}`;
+        },
       },
       {
         type: "password",
@@ -52,7 +71,7 @@ export class BlueskyAuth {
       console.log(
         chalk.yellow("  2.") +
           " Verify your handle format (e.g., " +
-          chalk.bgBlue("user.bsky.social") +
+          chalk.bgBlue(`user.${this.serviceUrl}`) +
           ")",
       );
       console.log(

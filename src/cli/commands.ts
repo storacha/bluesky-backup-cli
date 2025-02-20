@@ -7,14 +7,14 @@ export const authCommands = (program: Command) => {
   program
     .name("bsky-backup")
     .description(chalk.cyan("✨ CLI tool for backing up Bluesky posts ✨"))
-    .version("1.0.0");
 
   program
     .command("login")
     .description("Authenticate with Bluesky")
-    .action(async () => {
+    .option("--pds <url>", "Custom PDS URL", "https://bksy.social")
+    .action(async (options) => {
       try {
-        const auth = new BlueskyAuth();
+        const auth = new BlueskyAuth(options.pds);
         const session = await auth.login();
         if (session) {
           console.log(
@@ -39,8 +39,11 @@ export const authCommands = (program: Command) => {
   program.addHelpText(
     "afterAll",
     `\n${chalk.yellow.bold("Examples:")}
-    ${chalk.cyan("$ bsky-backup login")}      → Authenticate with Bluesky
-    ${chalk.cyan("$ bsky-backup logout")}     → Remove stored credentials
+    ${chalk.cyan("$ bsky-backup login")}          → Authenticate with Bluesky
+    ${chalk.cyan("$ bsky-backup logout")}         → Remove stored credentials
+    ${chalk.cyan("$ bsky test create-account")}   → If you want to create an account on your PDS
+    ${chalk.cyan("$ bsky test create-post")}      → Create a test post or multiple test posts on your PDS. You also have the option to replying to a post
+    ${chalk.cyan("$ bsky test list-post")}        → List test posts on your PDS
 
     ${chalk.green("For more details, use:")}
     ${chalk.cyan("$ bsky-backup --help")}`,
