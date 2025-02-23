@@ -3,9 +3,14 @@ import chalk from "chalk";
 import ora from "ora";
 import inquirer from "inquirer";
 import { PdsAccountManager } from "../pds/account";
-import { Record } from "@atproto/api/dist/client/types/app/bsky/graph/starterpack";
+import { BlueskyAuth } from "../auth/bsky";
+import { Record } from "@atproto/api/dist/client/types/com/atproto/repo/listRecords";
+import { OutputSchema } from "@atproto/api/dist/client/types/tools/ozone/team/updateMember";
 
 export const pdsActions = (program: Command) => {
+  const bluesky = new BlueskyAuth();
+  const manager = new PdsAccountManager();
+
   const test = program
     .command("test")
     .description("Test utilities for the Bluesky-Storacha backup CLI");
@@ -15,59 +20,75 @@ export const pdsActions = (program: Command) => {
     .description("Create a test account on a development PDS")
     .action(async () => {
       try {
+        const pds = await bluesky.getPdsUrl();
+        const spinner = ora("Validating PDS connection...").start();
+        await manager.validatePdsConnection();
+        spinner.succeed("PDS connection validated");
+
+        const pdsHost = new URL(pds).hostname;
+
         const answers = await inquirer.prompt([
-          {
-            type: "input",
-            name: "pds",
-            message: "Enter development PDS URL:",
-            validate: (input) =>
-              input.startsWith("https://") ||
-              "PDS URL must start with https://",
-          },
           {
             type: "input",
             name: "handle",
             message: "Enter test account handle:",
-            validate: (input) =>
-              input.includes(".") ||
-              "Handle must include a domain (e.g., user.domain.com)",
+            default: `test.${pdsHost}`,
+            validate: (input) => {
+              if (!input.endsWith(pdsHost)) {
+                return `Handle must end with ${pdsHost}`;
+              }
+              return true;
+            },
           },
           {
             type: "input",
             name: "email",
             message: "Enter test email address:",
-            validate: (input) =>
-              input.includes("@") || "Please enter a valid email address",
+            default: `test@${pdsHost}`,
+            validate: (input) => {
+              if (!input.includes("@"))
+                return "Please enter a valid email address";
+              const emailDomain = input.split("@")[1];
+              if (emailDomain !== pdsHost) {
+                return `Warning: This PDS might require an email with domain ${pdsHost}. Continue?`;
+              }
+              return true;
+            },
           },
           {
             type: "password",
             name: "password",
             message: "Enter test account password:",
+            mask: true,
             validate: (input) =>
               input.length >= 8 || "Password must be at least 8 characters",
           },
           {
             type: "input",
             name: "inviteCode",
-            message: "Enter PDS invite code (contact your PDS administrator):",
+            message: "Enter PDS invite code:",
             validate: (input) => input.length > 0 || "Invite code is required",
           },
         ]);
 
-        const spinner = ora("Creating test account...").start();
-        const manager = new PdsAccountManager(answers.pds);
+        spinner.start("Creating test account...");
         const account = await manager.createAccountOnPds({
           email: answers.email,
           handle: answers.handle,
           password: answers.password,
           inviteCode: answers.inviteCode,
         });
-        spinner.succeed(`Created test account: ${account.handle}`);
-
-        console.log(chalk.green("\nTest account created successfully!"));
-        await showTestMenu(answers.pds);
+        if (account) {
+          spinner.succeed(`Created test account: ${account}`);
+          console.log(chalk.green("\nTest account created successfully!"));
+          await showTestMenu(pds);
+        } else {
+          spinner.info(`Unable to create account`);
+          process.exit(1);
+        }
       } catch (error) {
-        console.error(chalk.red(`\nError: ${(error as Error).message}`));
+        const errorMessage = (error as Error).message;
+        console.error(chalk.red(`\nError: ${errorMessage}`));
 
         if ((error as Error).message.includes("invite")) {
           console.log(chalk.yellow("\nAbout invite codes:"));
@@ -75,10 +96,9 @@ export const pdsActions = (program: Command) => {
             "1. Invite codes are required by PDS instances to control account creation",
           );
           console.log(
-            "2. Contact your PDS administrator to obtain a valid invite code",
+            "3. Contact your PDS administrator for a new invite code",
           );
         }
-        process.exit(1);
       }
     });
 
@@ -87,16 +107,7 @@ export const pdsActions = (program: Command) => {
     .description("Create test posts on your development PDS")
     .action(async () => {
       try {
-        const { pds } = await inquirer.prompt([
-          {
-            type: "input",
-            name: "pds",
-            message: "Enter development PDS URL:",
-            validate: (input) =>
-              input.startsWith("https://") ||
-              "PDS URL must start with https://",
-          },
-        ]);
+        await bluesky.getPdsUrl();
 
         const { postType } = await inquirer.prompt([
           {
@@ -109,8 +120,6 @@ export const pdsActions = (program: Command) => {
             ],
           },
         ]);
-
-        const manager = new PdsAccountManager(pds);
 
         if (postType === "single") {
           const { text } = await inquirer.prompt([
@@ -154,7 +163,8 @@ export const pdsActions = (program: Command) => {
           console.log(chalk.white(`  Text: ${text}`));
         }
       } catch (error) {
-        console.error(chalk.red(`Error: ${(error as Error).message}`));
+        console.error(chalk.red(`\nError: ${(error as Error).message}`));
+        process.exit(1);
       }
     });
 
@@ -163,20 +173,15 @@ export const pdsActions = (program: Command) => {
     .description("List test posts from your development account")
     .action(async () => {
       try {
-        const { pds, limit } = await inquirer.prompt([
-          {
-            type: "input",
-            name: "pds",
-            message: "Enter development PDS URL:",
-            validate: (input) =>
-              input.startsWith("https://") ||
-              "PDS URL must start with https://",
-          },
+        const pds = await bluesky.getPdsUrl();
+
+        const { limit } = await inquirer.prompt([
           {
             type: "number",
             name: "limit",
             message: "How many posts to retrieve?",
             default: 10,
+            required: false,
           },
         ]);
 
@@ -186,11 +191,13 @@ export const pdsActions = (program: Command) => {
         spinner.succeed(`Retrieved ${posts.length} test posts`);
 
         console.log(chalk.green("\nTest Posts:"));
-        posts.forEach((post: Partial<Record>, index) => {
+        posts.forEach((post: Record, index) => {
           console.log(
-            chalk.white(`\n${index + 1}. Created at: ${post.createdAt}`),
+            // @ts-ignore
+            chalk.white(`\n${index + 1}. Created at: ${post.value.createdAt}`),
           );
-          console.log(chalk.cyan(`   ${post.text}`));
+          // @ts-ignore
+          console.log(chalk.cyan(`   ${post.value.text}`));
           console.log(chalk.gray(`   URI: ${post.uri}`));
         });
       } catch (error) {

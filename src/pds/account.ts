@@ -1,5 +1,7 @@
 import { AtpAgent } from "@atproto/api";
-import { readConfig } from "../utils/config";
+import { Config, readConfig } from "../utils/config";
+import chalk from "chalk";
+import { Session } from "../auth/session";
 
 export type AccountCreationPayload = {
   email: string;
@@ -32,28 +34,55 @@ const errorMessage = (action: AccountAction, error: Error) => {
 };
 
 export class PdsAccountManager {
-  private agent: AtpAgent;
-  private pdsUrl: string;
+  private session: Session;
+  private config: Config;
+  private agent: AtpAgent
 
   constructor(pdsUrl?: string) {
-    const config = readConfig();
-    this.pdsUrl = pdsUrl || config.pdsUrl || "https://bsky.social";
-    this.agent = new AtpAgent({ service: this.pdsUrl });
+    this.config = readConfig();
+    this.session = new Session(pdsUrl);
+    this.agent = this.session.getAgent()
+  }
+
+  async validatePdsConnection() {
+    try {
+      const result = await this.agent.com.atproto.server.describeServer();
+      return result.data;
+    } catch (error) {
+      throw new Error(`Failed to connect to PDS: ${(error as Error).message}`);
+    }
   }
 
   async createAccountOnPds(payload: AccountCreationPayload) {
     const { email, handle, password, inviteCode } = payload;
 
     try {
-      const request = await this.agent.com.atproto.server.createAccount({
+      await this.validatePdsConnection();
+      const request = await this. agent.com.atproto.server.createAccount({
         handle,
         email,
         password,
-        inviteCode
+        inviteCode,
       });
+
+      await this.agent.login({ identifier: handle, password });
       return request.data;
     } catch (error) {
-      throw new Error(`Failed to ${errorMessage("account", error as Error)}`);
+      const err = error as Error;
+      if (err.message.includes("email")) {
+        const pdsHost = new URL(this.agent.serviceUrl).hostname;
+        console.log(
+          `${chalk.yellow(`\nEmail error: Try using an email address with the domain ${pdsHost} (e.g., username@${pdsHost})`)}`,
+        );
+      } else if (err.message.includes("invite")) {
+        console.log(
+          `${chalk.yellow(`\nInvite code error: The provided code "${inviteCode}" appears to be invalid. Please verify the code or request a new one.`)}`,
+        );
+      } else {
+        console.log(
+          `${chalk.red(`Failed to ${errorMessage("account", err)}`)}`,
+        );
+      }
     }
   }
 
@@ -73,7 +102,7 @@ export class PdsAccountManager {
 
       const request = await this.agent.com.atproto.repo.createRecord({
         repo: this.agent.session?.did || "",
-        collection: "app.bsky.feed.post",
+        collection: "atproto.storacha.network.post",
         record,
       });
       return request.data;
