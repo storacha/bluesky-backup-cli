@@ -1,47 +1,115 @@
 import keytar from "keytar";
 import { AtpAgent } from "@atproto/api";
-import { readConfig, writeConfig } from "../utils/config";
+import { Config, readConfig, writeConfig } from "../utils/config";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import ora from "ora";
-
-const SERVICE_NAME = "bsky-backups-cli";
+import { Session } from "./session";
 
 export class BlueskyAuth {
-  private agent = new AtpAgent({ service: "https://bsky.social" });
+  private session: Session;
+  private config: Config;
+  private serviceUrl?: string;
+
+  constructor(serviceUrl?: string) {
+    this.serviceUrl = serviceUrl;
+    this.config = readConfig();
+    this.session = new Session(this.serviceUrl || this.config.pdsUrl);
+  }
+
+  async validatePdsConnection(): Promise<void> {
+    const agent = this.session.getAgent();
+
+    try {
+      await agent.com.atproto.server.describeServer();
+    } catch (error) {
+      console.log(
+        chalk.red(
+          `\nUnable to connect to PDS at ${agent.serviceUrl.toString()}`,
+        ),
+      );
+
+      const newPds = await this.promptForPds();
+      await this.updatePds(newPds);
+    }
+  }
+
+  private async promptForPds(): Promise<string> {
+    const { pds } = await inquirer.prompt({
+      type: "input",
+      name: "pds",
+      message: "Enter PDS URL (must start with https://):",
+      validate: (input) =>
+        input.startsWith("https://") || "URL must start with https://",
+    });
+
+    return pds;
+  }
+
+  private async updatePds(newUrl: string): Promise<void> {
+    this.session = new Session(newUrl);
+    writeConfig({ ...this.config, pdsUrl: newUrl });
+
+    try {
+      await this.session.getAgent().com.atproto.server.describeServer();
+    } catch (error) {
+      console.log(chalk.red(`Still can't connect to ${newUrl}`));
+      return this.updatePds(await this.promptForPds());
+    }
+  }
+
+  async getPdsUrl(): Promise<string> {
+    if (this.config.pdsUrl) return this.config.pdsUrl;
+
+    const { pds } = await inquirer.prompt([
+      {
+        type: "input",
+        name: "pds",
+        message: "Enter PDS URL",
+        validate: (input) =>
+          input.startsWith("https://") || "PDS URL must start with https://",
+      },
+    ]);
+
+    writeConfig({
+      ...this.config,
+      pdsUrl: pds,
+    });
+
+    return pds;
+  }
 
   async login() {
+    await this.validatePdsConnection();
+    const agent = this.session.getAgent();
+    const pdsUrl = new URL(agent.serviceUrl);
+
     const { identifier, password } = await inquirer.prompt([
       {
         type: "input",
         name: "identifier",
-        message: "Enter your bluesky handle (e.g. user.bsky.social):",
+        message: `Enter your bluesky handle (e.g. user.${new URL(pdsUrl).hostname}):`,
+        validate: (input: string) => {
+          const host = new URL(pdsUrl).hostname;
+          return input.endsWith(host) || input.includes(".")
+            ? true
+            : `Handle should be in format: user.${host}`;
+        },
       },
       {
         type: "password",
         name: "password",
         message: "Enter your Bluesky app password:",
+        mask: true,
       },
     ]);
 
     const spinner = ora("Logging in...").start();
     try {
-      const session = await this.agent.login({ identifier, password });
-
-      await keytar.setPassword(
-        SERVICE_NAME,
-        session.data.did,
-        session.data.refreshJwt,
-      );
-
-      const config = readConfig();
-      writeConfig({
-        ...config,
-        accounts: [...new Set([...config.accounts, session.data.did])],
-      });
-
+      const session = await agent.login({ identifier, password });
+      await this.session.saveSession(session.data);
       spinner.succeed(`Successfully logged in as ${session.data.handle}`);
-      return session.data;
+      return true;
     } catch (error) {
       spinner.fail(`Authentication failed: ${(error as Error).message}`);
       console.log(chalk.yellow("  Troubleshooting:"));
@@ -52,7 +120,7 @@ export class BlueskyAuth {
       console.log(
         chalk.yellow("  2.") +
           " Verify your handle format (e.g., " +
-          chalk.bgBlue("user.bsky.social") +
+          chalk.bgBlue(`user.${new URL(pdsUrl).hostname}`) +
           ")",
       );
       console.log(
@@ -60,7 +128,6 @@ export class BlueskyAuth {
           " Check account status at: " +
           chalk.blue("https://bsky.app/settings"),
       );
-      throw error;
     }
   }
 
@@ -80,12 +147,6 @@ export class BlueskyAuth {
         choices: accounts,
       },
     ]);
-
-    await keytar.deletePassword(SERVICE_NAME, did);
-    writeConfig({
-      ...config,
-      accounts: config.accounts.filter((d: string) => d !== did),
-    });
-    console.log(`Logged out of ${did}`);
+    await this.session.clearSession(did);
   }
 }

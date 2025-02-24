@@ -1,30 +1,22 @@
 #!/usr/bin/env node
 import chalk from "chalk";
 import { BlueskyAuth } from "../auth/bsky";
-import { Command } from "commander";
 
-export const authCommands = (program: Command) => {
+export const authCommands = (program) => {
   program
     .name("bsky-backup")
     .description(chalk.cyan("✨ CLI tool for backing up Bluesky posts ✨"))
-    .version("1.0.0");
 
   program
     .command("login")
     .description("Authenticate with Bluesky")
-    .action(async () => {
+    .option("--pds <url>", "Custom PDS URL", "https://bksy.app")
+    .action(async (options) => {
       try {
-        const auth = new BlueskyAuth();
-        const session = await auth.login();
-        if (session) {
-          console.log(
-            `Successfully logged in as ${chalk.bgBlueBright(session.handle)}`,
-          );
-        } else {
-          console.log(chalk.red("Login failed. No session returned."));
-        }
+        const auth = new BlueskyAuth(options.pds);
+        await auth.login();
       } catch (error) {
-        console.log((error as Error).message);
+        console.log((error.message));
       }
     });
 
@@ -39,8 +31,11 @@ export const authCommands = (program: Command) => {
   program.addHelpText(
     "afterAll",
     `\n${chalk.yellow.bold("Examples:")}
-    ${chalk.cyan("$ bsky-backup login")}      → Authenticate with Bluesky
-    ${chalk.cyan("$ bsky-backup logout")}     → Remove stored credentials
+    ${chalk.cyan("$ bsky-backup login")}                 → Authenticate with Bluesky
+    ${chalk.cyan("$ bsky-backup logout")}                → Remove stored credentials
+    ${chalk.cyan("$ bsky test create-account")}          → If you want to create an account on your PDS
+    ${chalk.cyan("$ bsky-backup test create-post")}      → Create a test post or multiple test posts on your PDS. You also have the option to replying to a post
+    ${chalk.cyan("$ bsky-backup test list-post")}        → List test posts on your PDS
 
     ${chalk.green("For more details, use:")}
     ${chalk.cyan("$ bsky-backup --help")}`,
