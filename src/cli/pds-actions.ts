@@ -11,8 +11,8 @@ export const pdsActions = (program: Command) => {
   const manager = new PdsAccountManager();
 
   const test = program
-    .command("test")
-    .description("Test utilities for the Bluesky-Storacha backup CLI");
+    .command("admin")
+    .description("Carry out admin-related actions on your PDS");
 
   test
     .command("create-account")

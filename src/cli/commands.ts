@@ -6,7 +6,7 @@ import { readConfig } from "../utils/config";
 
 export const authCommands = (program: Command) => {
   program
-    .name("bsky-backup")
+    .name("bb")
     .description(chalk.cyan("✨ CLI tool for backing up Bluesky posts ✨"));
   const config = readConfig();
 
@@ -34,14 +34,14 @@ export const authCommands = (program: Command) => {
   program.addHelpText(
     "afterAll",
     `\n${chalk.yellow.bold("Examples:")}
-    ${chalk.cyan("$ bsky-backup login")}                 → Authenticate with Bluesky
-    ${chalk.cyan("$ bsky-backup logout")}                → Remove stored credentials
-    ${chalk.cyan("$ bsky test create-account")}          → If you want to create an account on your PDS
-    ${chalk.cyan("$ bsky-backup test create-post")}      → Create a test post or multiple test posts on your PDS. You also have the option to replying to a post
-    ${chalk.cyan("$ bsky-backup test list-post")}        → List test posts on your PDS
+    ${chalk.cyan("$ bb login")}                          → Authenticate with Bluesky
+    ${chalk.cyan("$ bb logout")}                         → Remove stored credentials
+    ${chalk.cyan("$ bb admin create-account")}           → If you want to create an account on your PDS
+    ${chalk.cyan("$ bb test create-post")}               → Create a test post or multiple test posts on your PDS. You also have the option to replying to a post
+    ${chalk.cyan("$ bb test list-post")}                 → List test posts on your PDS
 
     ${chalk.green("For more details, use:")}
-    ${chalk.cyan("$ bsky-backup --help")}`,
+    ${chalk.cyan("$ bb --help")}`,
   );
 
   if (!process.argv.slice(2).length) {
