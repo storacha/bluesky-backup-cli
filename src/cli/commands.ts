@@ -1,22 +1,25 @@
 #!/usr/bin/env node
 import chalk from "chalk";
 import { BlueskyAuth } from "../auth/bsky";
+import { Command } from "commander";
+import { readConfig } from "../utils/config";
 
-export const authCommands = (program) => {
+export const authCommands = (program: Command) => {
   program
     .name("bsky-backup")
-    .description(chalk.cyan("✨ CLI tool for backing up Bluesky posts ✨"))
+    .description(chalk.cyan("✨ CLI tool for backing up Bluesky posts ✨"));
+  const config = readConfig();
 
   program
     .command("login")
     .description("Authenticate with Bluesky")
-    .option("--pds <url>", "Custom PDS URL", "https://bksy.app")
+    .option("--pds <url>", "Custom PDS URL", config.pdsUrl)
     .action(async (options) => {
       try {
         const auth = new BlueskyAuth(options.pds);
         await auth.login();
       } catch (error) {
-        console.log((error.message));
+        console.log((error as Error).message);
       }
     });
 

@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import Agent, { CredentialSession } from "@atproto/api";
-import { Config, readConfig, writeConfig } from "../utils/config";
+import { Account, Config, readConfig, writeConfig } from "../utils/config";
 import keytar from "keytar";
 
 const SERVICE_NAME = "bsky-backup-cli";
@@ -11,10 +11,19 @@ export class Session {
 
   constructor(pdsUrl?: string) {
     this.config = readConfig();
-    const serviceUrl = pdsUrl || this.config.pdsUrl || "https://bsky.app";
-    const session = new CredentialSession(new URL(serviceUrl));
-    this.agent = new Agent(session);
-    this.resumeSession();
+    const serviceUrl =
+      pdsUrl || this.config.pdsUrl || "https://atproto.storacha.network";
+
+    try {
+      const session = new CredentialSession(new URL(serviceUrl));
+      this.agent = new Agent(session);
+      this.resumeSession();
+    } catch (error) {
+      console.error(`Invalid PDS URL: ${serviceUrl}`);
+      throw new Error(
+        `Cannot create session with invalid PDS URL: ${serviceUrl}`,
+      );
+    }
   }
 
   private resumeSession() {
@@ -43,6 +52,10 @@ export class Session {
 
     writeConfig({
       ...this.config,
+      accounts: [
+        ...this.config.accounts,
+        { did: session.did, handle: session.handle },
+      ],
       pdsUrl: this.agent.serviceUrl.toString(),
       bluesky: { ...session },
     });
@@ -53,7 +66,7 @@ export class Session {
     writeConfig({
       ...this.config,
       bluesky: undefined,
-      accounts: this.config.accounts.filter((d: string) => d !== did),
+      accounts: this.config.accounts.filter((d: Account) => d.did !== did),
     });
     console.log(`Logged out of ${did}`);
   }

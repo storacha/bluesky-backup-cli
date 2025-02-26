@@ -5,7 +5,6 @@ import inquirer from "inquirer";
 import { PdsAccountManager } from "../pds/account";
 import { BlueskyAuth } from "../auth/bsky";
 import { Record } from "@atproto/api/dist/client/types/com/atproto/repo/listRecords";
-import { OutputSchema } from "@atproto/api/dist/client/types/tools/ozone/team/updateMember";
 
 export const pdsActions = (program: Command) => {
   const bluesky = new BlueskyAuth();
