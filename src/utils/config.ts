@@ -3,8 +3,13 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
+export type Account = {
+  did: string;
+  handle: string
+}
+
 export interface Config {
-  accounts: string[];
+  accounts: Account[];
   pdsUrl?: string;
   bluesky?: Partial<AtpSessionData>;
   storacha?: {
