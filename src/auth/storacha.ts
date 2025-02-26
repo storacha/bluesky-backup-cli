@@ -81,7 +81,6 @@ export class StorachaAuth {
     const spinner = ora(`Creating "${spaceName}"...`).start();
     spinner.color = "red"
 
-
     try {
       const space = await client.createSpace(spaceName);
       await client.setCurrentSpace(space.did());

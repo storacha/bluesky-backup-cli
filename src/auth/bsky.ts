@@ -149,7 +149,7 @@ export class BlueskyAuth {
         type: "list",
         name: "did",
         message: "Select account to logout:",
-        choices: accounts.map((account) => `${account.handle} ~${account.did}`),
+        choices: accounts.map((account) => `${account.handle} (${account.did})`),
       },
     ]);
     await this.session.clearSession(did);

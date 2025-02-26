@@ -37,8 +37,8 @@ export const authCommands = (program: Command) => {
     ${chalk.cyan("$ bb login")}                          → Authenticate with Bluesky
     ${chalk.cyan("$ bb logout")}                         → Remove stored credentials
     ${chalk.cyan("$ bb admin create-account")}           → If you want to create an account on your PDS
-    ${chalk.cyan("$ bb test create-post")}               → Create a test post or multiple test posts on your PDS. You also have the option to replying to a post
-    ${chalk.cyan("$ bb test list-post")}                 → List test posts on your PDS
+    ${chalk.cyan("$ bb admin create-post")}              → Create a test post or multiple test posts on your PDS. You also have the option to replying to a post
+    ${chalk.cyan("$ bb admin list-post")}                → List test posts on your PDS
 
     ${chalk.green("For more details, use:")}
     ${chalk.cyan("$ bb --help")}`,
