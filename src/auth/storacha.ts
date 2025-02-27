@@ -3,7 +3,7 @@ import { Config, readConfig, writeConfig } from "../utils/config";
 import inquirer from "inquirer";
 import ora from "ora";
 import chalk from "chalk";
-import { OwnedSpace } from "@web3-storage/w3up-client/dist/src/space";
+import { OwnedSpace, Space } from "@web3-storage/w3up-client/dist/src/space";
 
 export class StorachaAuth {
   private config: Config;
@@ -41,9 +41,7 @@ export class StorachaAuth {
           email,
         },
       });
-     spinner.succeed(
-        `Successfully logged in to Storacha with ${email}`,
-      );
+      spinner.succeed(`Successfully logged in to Storacha with ${email}`);
       return client;
     } catch (error) {
       spinner.fail(
@@ -79,35 +77,31 @@ export class StorachaAuth {
     ]);
 
     const spinner = ora(`Creating "${spaceName}"...`).start();
-    spinner.color = "red"
+    spinner.color = "red";
 
     try {
       const space = await client.createSpace(spaceName);
       await client.setCurrentSpace(space.did());
-     spinner.succeed(`Successfully created "${spaceName}"`);
+      spinner.succeed(`Successfully created "${spaceName}"`);
       return space;
     } catch (error) {
-      spinner.fail(
-        `Failed to create space: ${(error as Error).message}`,
-      );
+      spinner.fail(`Failed to create space: ${(error as Error).message}`);
       return undefined;
     }
   }
 
-  async listSpaces(client: Client.Client): Promise<OwnedSpace[]> {
+  async listSpaces(client: Client.Client): Promise<OwnedSpace[] | Space[]> {
     const spinner = ora("Retrieving your spaces...").start();
-    spinner.color ="red"
+    spinner.color = "red";
 
     try {
       const spaces = client.spaces();
       spinner.succeed(
         `Found ${spaces.length} space${spaces.length > 1 ? "s" : ""}`,
       );
-      return [];
+      return spaces;
     } catch (error) {
-      spinner.fail(
-        `Failed to get spaces: ${(error as Error).message}`,
-      );
+      spinner.fail(`Failed to get spaces: ${(error as Error).message}`);
       return [];
     }
   }
@@ -152,6 +146,6 @@ export class StorachaAuth {
       );
     }
 
-    return selectedSpace;
+    return selectedSpace as OwnedSpace;
   }
 }

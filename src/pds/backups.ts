@@ -95,8 +95,7 @@ export class BackupManager {
       // we should obtain a content identtfier here
       const cid = await client.uploadFile({
         ...fileObject,
-        // @ts-ignore
-        stream: "",
+        stream: () => blob.stream(),
       });
 
       spinner.succeed("Backup uploaded successfully!");
@@ -146,10 +145,15 @@ export class BackupManager {
         })),
       };
 
-      fs.writeFileSync(backupPath, JSON.stringify(fileContent, null, 2));
-      spinner.succeed(
-        `Saved ${posts.length} post${posts.length > 1 ? "s" : ""} to ${backupPath}`,
-      );
+      if (posts.length > 0) {
+        fs.writeFileSync(backupPath, JSON.stringify(fileContent, null, 2));
+        spinner.succeed(
+          `Saved ${posts.length} post${posts.length > 1 ? "s" : ""} to ${backupPath}`,
+        );
+      } else {
+        spinner.succeed(`Skipping local backup. No posts found`);
+        process.exit(1)
+      }
       return backupPath;
     } catch (error) {
       spinner.fail(`Failed to save posts: ${(error as Error).message}`);
