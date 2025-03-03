@@ -9,6 +9,7 @@ import { Record } from "@atproto/api/dist/client/types/com/atproto/repo/listReco
 import path from "node:path";
 import fs from "node:fs";
 import { homedir } from "node:os";
+import * as Client from "@web3-storage/w3up-client"
 
 export class BackupManager {
   private blueskyAuth: BlueskyAuth;
@@ -20,7 +21,6 @@ export class BackupManager {
     this.pdsManager = new PdsAccountManager();
     this.storachaAuth = new StorachaAuth();
   }
-
   // we should check if there's any session in the config
   async validateLogin() {
     const config = readConfig();
@@ -75,11 +75,20 @@ export class BackupManager {
     spinner.color = "red";
 
     try {
-      const client = await this.storachaAuth.login();
-      spinner.succeed();
+      const client = await Client.create();
+      const account = await this.storachaAuth.login();
+      if (!client) {
+        spinner.fail("Failed to establish connection.");
+        return;
+      }
+      spinner.succeed("Connection established");
 
+      const space = await this.storachaAuth.selectSpace(client, account);
       spinner.start("Setting up storage space...");
-      await this.storachaAuth.selectSpace(client);
+      if (!space) {
+        spinner.fail("Failed to select or create a storage space");
+        return;
+      }
       spinner.succeed("Storage space ready");
 
       spinner.start(`Uploading backup from ${filePath}...`);
@@ -115,7 +124,6 @@ export class BackupManager {
     const spinner = ora("Saving posts to local file...").start();
 
     try {
-      fs;
       const backupDir = path.join(homedir(), "bsky-backup");
       if (!fs.existsSync(backupDir))
         fs.mkdirSync(backupDir, { recursive: true });
@@ -152,7 +160,7 @@ export class BackupManager {
         );
       } else {
         spinner.succeed(`Skipping local backup. No posts found`);
-        process.exit(1)
+        process.exit(1);
       }
       return backupPath;
     } catch (error) {

@@ -13,7 +13,7 @@ export interface Config {
   pdsUrl?: string;
   bluesky?: Partial<AtpSessionData>;
   storacha?: {
-    email: string,
+    email: `${string}@${string}`,
   };
 }
 

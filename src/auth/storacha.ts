@@ -4,6 +4,8 @@ import inquirer from "inquirer";
 import ora from "ora";
 import chalk from "chalk";
 import { OwnedSpace, Space } from "@web3-storage/w3up-client/dist/src/space";
+import * as Account from "@web3-storage/w3up-client/account";
+import * as Result from "@web3-storage/w3up-client/result";
 
 export class StorachaAuth {
   private config: Config;
@@ -12,7 +14,27 @@ export class StorachaAuth {
     this.config = readConfig();
   }
 
-  async login(): Promise<Client.Client> {
+  async login(): Promise<Account.Account> {
+    if (this.config.storacha?.email) {
+      const spinner = ora(
+        `Logging in to Storacha with ${this.config.storacha.email}`,
+      );
+      spinner.color = "red";
+
+      try {
+        const client = await Client.create();
+        const email = this.config.storacha.email;
+        const account = Result.try(await Account.login(client, email));
+        Result.try(await account.save());
+        spinner.succeed(
+          `Successfully logged in to Storacha with ${this.config.storacha.email}`,
+        );
+        return account;
+      } catch (error) {
+        spinner.info("Couldn't auto-login, let's try manually instead");
+      }
+    }
+
     const { email } = await inquirer.prompt([
       {
         type: "input",
@@ -32,7 +54,10 @@ export class StorachaAuth {
 
     try {
       const client = await Client.create();
-      await client.login(email);
+      const account = Result.try(await Account.login(client, email));
+      // whether or not to include this
+      // await account.plan.wait()
+      Result.try(await account.save());
 
       writeConfig({
         ...this.config,
@@ -42,7 +67,7 @@ export class StorachaAuth {
         },
       });
       spinner.succeed(`Successfully logged in to Storacha with ${email}`);
-      return client;
+      return account;
     } catch (error) {
       spinner.fail(
         `\nFailed to login to Storacha: ${(error as Error).message}`,
@@ -58,7 +83,7 @@ export class StorachaAuth {
       );
       console.log(
         chalk.yellow("  4.") +
-          " Ensure that you've also connected your card for billing. The free plan, at last",
+          " Ensure that you've also connected your card for billing. The free plan, at least",
       );
       throw error;
     }
@@ -66,6 +91,7 @@ export class StorachaAuth {
 
   async createStorachaSpace(
     client: Client.Client,
+    account: Account.Account,
   ): Promise<OwnedSpace | undefined> {
     const { spaceName } = await inquirer.prompt([
       {
@@ -80,7 +106,7 @@ export class StorachaAuth {
     spinner.color = "red";
 
     try {
-      const space = await client.createSpace(spaceName);
+      const space = await client.createSpace(spaceName, { account });
       await client.setCurrentSpace(space.did());
       spinner.succeed(`Successfully created "${spaceName}"`);
       return space;
@@ -106,12 +132,15 @@ export class StorachaAuth {
     }
   }
 
-  async selectSpace(client: Client.Client): Promise<OwnedSpace | undefined> {
+  async selectSpace(
+    client: Client.Client,
+    account: Account.Account,
+  ): Promise<OwnedSpace | undefined> {
     const spaces = await this.listSpaces(client);
 
     if (spaces.length === 0) {
       console.log(chalk.yellow("No spaces found. Let's create one"));
-      return this.createStorachaSpace(client);
+      return this.createStorachaSpace(client, account);
     }
 
     const { spaceOption } = await inquirer.prompt([
@@ -133,12 +162,22 @@ export class StorachaAuth {
     ]);
 
     if (spaceOption === "new") {
-      return this.createStorachaSpace(client);
+      return this.createStorachaSpace(client, account);
     }
 
     const selectedSpace = spaces.find((space) => space.did() === spaceOption);
     if (selectedSpace) {
       await client.setCurrentSpace(selectedSpace.did());
+
+      // try {
+      //   const spinner = ora("Verifying storage provider...").start();
+      //   await client.capability.upload.list();
+      //   spinner.succeed();
+      // } catch (error) {
+      //   console.log(chalk.yellow("This space needs storage provisioning"));
+      //   await this.createStorachaSpace(client);
+      // }
+
       console.log(
         chalk.green(
           `Selected space: ${selectedSpace.name || selectedSpace.did()}`,
