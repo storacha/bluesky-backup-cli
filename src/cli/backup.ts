@@ -43,6 +43,7 @@ export const backupCommands = (program: Command) => {
     .action(async () => {
       try {
         const storacha = new StorachaAuth();
+
         const client = await Client.create();
         const account = await storacha.login();
         await storacha.selectSpace(client, account);
