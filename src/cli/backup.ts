@@ -2,6 +2,8 @@ import { Command } from "commander";
 import { BackupManager } from "../pds/backups";
 import chalk from "chalk";
 import { StorachaAuth } from "../auth/storacha";
+import * as Client from "@web3-storage/w3up-client"
+import { readConfig } from "../utils/config";
 
 export const backupCommands = (program: Command) => {
   const backup = program
@@ -26,8 +28,9 @@ export const backupCommands = (program: Command) => {
     .description("Upload an existing backup to Storacha")
     .action(async () => {
       try {
+        const config = readConfig()
         const manager = new BackupManager();
-        await manager.uploadExistingBackup();
+        await manager.uploadExistingBackup(config.dataType || "car");
       } catch (error) {
         console.error(chalk.red(`Error: ${(error as Error).message}`));
         process.exit(1);
@@ -40,8 +43,10 @@ export const backupCommands = (program: Command) => {
     .action(async () => {
       try {
         const storacha = new StorachaAuth();
-        const client = await storacha.login();
-        await storacha.selectSpace(client);
+
+        const client = await Client.create();
+        const account = await storacha.login();
+        await storacha.selectSpace(client, account);
         console.log(chalk.green("\nStoracha connection is working!"));
       } catch (error) {
         console.error(chalk.red(`Error: ${(error as Error).message}`));

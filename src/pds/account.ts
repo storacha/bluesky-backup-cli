@@ -124,6 +124,15 @@ export class PdsAccountManager {
     }
   }
 
+  async getPostsInCarFormat(did: string) {
+    try {
+      const request = await this.agent.com.atproto.sync.getRepo({ did });
+      return request.data;
+    } catch (error) {
+      console.error(`Failed to fetch CAR data: ${(error as Error).message}`);
+    }
+  }
+
   async getPostCid(uri: string): Promise<string> {
     try {
       const [repo, rkey] = uri.split("/").slice(-2);

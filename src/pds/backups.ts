@@ -1,25 +1,27 @@
 import chalk from "chalk";
 import { BlueskyAuth } from "../auth/bsky";
 import { StorachaAuth } from "../auth/storacha";
-import { readConfig } from "../utils/config";
+import { Config, readConfig, writeConfig } from "../utils/config";
 import { PdsAccountManager } from "./account";
 import inquirer from "inquirer";
-import ora from "ora";
+import ora, { Ora } from "ora";
 import { Record } from "@atproto/api/dist/client/types/com/atproto/repo/listRecords";
 import path from "node:path";
 import fs from "node:fs";
 import { homedir } from "node:os";
-import * as Client from "@web3-storage/w3up-client"
+import * as Client from "@web3-storage/w3up-client";
 
 export class BackupManager {
   private blueskyAuth: BlueskyAuth;
   private storachaAuth: StorachaAuth;
   private pdsManager: PdsAccountManager;
+  private config: Config;
 
   constructor() {
     this.blueskyAuth = new BlueskyAuth();
     this.pdsManager = new PdsAccountManager();
     this.storachaAuth = new StorachaAuth();
+    this.config = readConfig();
   }
   // we should check if there's any session in the config
   async validateLogin() {
@@ -35,23 +37,70 @@ export class BackupManager {
   async backupPosts(): Promise<void> {
     if (!(await this.validateLogin())) return;
 
-    const { limit } = await inquirer.prompt([
-      {
-        type: "number",
-        name: "limit",
-        message: "How many posts do you want to backup?",
-        default: 50,
-      },
-    ]);
-
-    const spinner = ora("Retrieving your posts...").start();
     try {
-      const posts = await this.pdsManager.getPostsFromPds(limit);
-      spinner.succeed(
-        `Retrieved ${posts.length} post${posts.length > 1 ? "s" : ""} from Bluesky`,
-      );
+      const { dataType } = await inquirer.prompt([
+        {
+          type: "list",
+          name: "dataType",
+          choices: [
+            { name: "CAR", value: "car" },
+            { name: "JSON", value: "json" },
+          ],
+          default: "car",
+          message: "How do you want this data stored?",
+        },
+      ]);
 
-      const backupPath = await this.savePostsToFile(posts);
+      writeConfig({
+        ...this.config,
+        dataType,
+      });
+
+      let backupPath: string = "";
+      let spinner: Ora | null = null;
+
+      if (dataType === "json") {
+        const { limit } = await inquirer.prompt([
+          {
+            type: "number",
+            name: "limit",
+            message: "How many posts do you want to backup?",
+            default: 50,
+          },
+        ]);
+
+        spinner = ora("Retrieving your posts...").start();
+
+        try {
+          const posts = await this.pdsManager.getPostsFromPds(limit);
+          spinner.succeed(
+            `Retrieved ${posts.length} post${posts.length > 1 ? "s" : ""} from Bluesky`,
+          );
+          backupPath = await this.savePostsToFile(posts);
+        } catch (error) {
+          spinner?.fail("Failed to retrieve posts");
+          console.error("Error", error);
+          throw error;
+        }
+      } else {
+        spinner = ora("Retrieving repository data...").start();
+        try {
+          const config = readConfig();
+          const did = config.bluesky?.did;
+          if (!did) throw new Error("No DID found in config");
+
+          const data = await this.pdsManager.getPostsInCarFormat(did);
+          spinner.succeed(
+            `Retrieved ${this.formatFileSize(Number(data?.length))} CAR data`,
+          );
+          backupPath = await this.saveCarToFile(
+            data as Uint8Array<ArrayBufferLike>,
+          );
+        } catch (error) {
+          spinner?.fail("Failed to retrieve CAR data");
+          throw error;
+        }
+      }
 
       const { uploadToStoracha } = await inquirer.prompt([
         {
@@ -63,14 +112,17 @@ export class BackupManager {
       ]);
 
       if (uploadToStoracha) {
-        await this.uploadToStoracha(backupPath);
+        await this.uploadToStoracha(backupPath, dataType);
       }
     } catch (error) {
       console.error(error);
     }
   }
 
-  async uploadToStoracha(filePath: string): Promise<void> {
+  async uploadToStoracha(
+    filePath: string,
+    dataType: "json" | "car",
+  ): Promise<void> {
     const spinner = ora("Establishing connection with Storacha...").start();
     spinner.color = "red";
 
@@ -98,7 +150,10 @@ export class BackupManager {
 
       // create a blob from the file so we can make it compatible with what
       // w3up-client accepts. a `File` too is accpetable though
-      const blob = new Blob([fileContent], { type: "application/json" });
+      const blob = new Blob([fileContent], {
+        type:
+          dataType === "json" ? "application/json" : "application/vnd.ipld.car",
+      });
       const fileObject = { name: fileName, blob };
 
       // we should obtain a content identtfier here
@@ -169,13 +224,34 @@ export class BackupManager {
     }
   }
 
+  private async saveCarToFile(data: Uint8Array): Promise<string> {
+    const spinner = ora("Saving CAR file...").start();
+
+    try {
+      const backupDir = path.join(homedir(), "bsky-backup");
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const backupPath = path.join(backupDir, `bluesky-posts-${timestamp}.car`);
+
+      fs.writeFileSync(backupPath, Buffer.from(data));
+      spinner.succeed(`Backup saved to: ${chalk.cyan(backupPath)}`);
+      return backupPath;
+    } catch (error) {
+      spinner.fail("Failed to save file");
+      throw error;
+    }
+  }
+
   private formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KiB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   }
 
-  async uploadExistingBackup(): Promise<void> {
+  async uploadExistingBackup(dataType: "json" | "car"): Promise<void> {
     const backupDir = path.join(homedir(), "bsky-backup");
 
     if (!fs.existsSync(backupDir)) {
@@ -185,7 +261,7 @@ export class BackupManager {
 
     const files = fs
       .readdirSync(backupDir)
-      .filter((file) => file.endsWith("json"))
+      .filter((file) => file.endsWith("json") || file.endsWith("car"))
       .sort()
       .reverse();
 
@@ -207,6 +283,6 @@ export class BackupManager {
     ]);
 
     const filePath = path.join(backupDir, selectedFile);
-    await this.uploadToStoracha(filePath);
+    await this.uploadToStoracha(filePath, dataType);
   }
 }
