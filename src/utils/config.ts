@@ -13,8 +13,9 @@ export interface Config {
   pdsUrl?: string;
   bluesky?: Partial<AtpSessionData>;
   storacha?: {
-    apiKey?: string;
+    email: `${string}@${string}`,
   };
+  dataType?: "json" | "car"
 }
 
 export const CONFIG_PATH = path.join(homedir(), ".bsky-backup-config.json");
