@@ -36,12 +36,12 @@ const errorMessage = (action: AccountAction, error: Error) => {
 export class PdsAccountManager {
   private session: Session;
   private config: Config;
-  private agent: AtpAgent
+  private agent: AtpAgent;
 
   constructor(pdsUrl?: string) {
     this.config = readConfig();
     this.session = new Session(pdsUrl);
-    this.agent = this.session.getAgent()
+    this.agent = this.session.getAgent();
   }
 
   async validatePdsConnection() {
@@ -58,7 +58,7 @@ export class PdsAccountManager {
 
     try {
       await this.validatePdsConnection();
-      const request = await this. agent.com.atproto.server.createAccount({
+      const request = await this.agent.com.atproto.server.createAccount({
         handle,
         email,
         password,
@@ -102,7 +102,7 @@ export class PdsAccountManager {
 
       const request = await this.agent.com.atproto.repo.createRecord({
         repo: this.agent.session?.did || "",
-        collection: "atproto.storacha.network.post",
+        collection: `${new URL(this.config.pdsUrl as string).hostname}.feed.post`,
         record,
       });
       return request.data;
@@ -116,11 +116,20 @@ export class PdsAccountManager {
       const request = await this.agent.com.atproto.repo.listRecords({
         limit: limit || 50,
         repo: this.agent.session?.did || "",
-        collection: "app.bsky.feed.post",
+        collection: `${new URL(this.config.pdsUrl as string).hostname}.feed.post`,
       });
       return request.data.records;
     } catch (error) {
       throw new Error(`Failed to ${errorMessage("posts", error as Error)}`);
+    }
+  }
+
+  async getPostsInCarFormat(did: string) {
+    try {
+      const request = await this.agent.com.atproto.sync.getRepo({ did });
+      return request.data;
+    } catch (error) {
+      console.error(`Failed to fetch CAR data: ${(error as Error).message}`);
     }
   }
 

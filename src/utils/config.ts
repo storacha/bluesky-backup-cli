@@ -3,13 +3,19 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
+export type Account = {
+  did: string;
+  handle: string
+}
+
 export interface Config {
-  accounts: string[];
+  accounts: Account[];
   pdsUrl?: string;
   bluesky?: Partial<AtpSessionData>;
   storacha?: {
-    apiKey?: string;
+    email: `${string}@${string}`,
   };
+  dataType?: "json" | "car"
 }
 
 export const CONFIG_PATH = path.join(homedir(), ".bsky-backup-config.json");

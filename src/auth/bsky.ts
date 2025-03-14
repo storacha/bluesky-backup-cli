@@ -1,5 +1,3 @@
-import keytar from "keytar";
-import { AtpAgent } from "@atproto/api";
 import { Config, readConfig, writeConfig } from "../utils/config";
 import inquirer from "inquirer";
 import chalk from "chalk";
@@ -14,7 +12,14 @@ export class BlueskyAuth {
   constructor(serviceUrl?: string) {
     this.serviceUrl = serviceUrl;
     this.config = readConfig();
-    this.session = new Session(this.serviceUrl || this.config.pdsUrl);
+
+    let validServiceUrl = serviceUrl;
+    if (!validServiceUrl || validServiceUrl === "undefined")
+      validServiceUrl =
+        this.config.pdsUrl || "https://atproto.storacha.network";
+
+    this.serviceUrl = validServiceUrl;
+    this.session = new Session(this.serviceUrl);
   }
 
   async validatePdsConnection(): Promise<void> {
@@ -144,7 +149,10 @@ export class BlueskyAuth {
         type: "list",
         name: "did",
         message: "Select account to logout:",
-        choices: accounts,
+        choices: accounts.map((account) => ({
+          name: `${account.handle} (${account.did})`,
+          value: account.did
+        })),
       },
     ]);
     await this.session.clearSession(did);
