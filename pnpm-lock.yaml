@@ -14,6 +14,12 @@ importers:
       '@atproto/oauth-client-node':
         specifier: ^0.2.10
         version: 0.2.10
+      '@ipld/car':
+        specifier: ^5.4.0
+        version: 5.4.0
+      '@ipld/dag-cbor':
+        specifier: ^9.2.2
+        version: 9.2.2
       '@web3-storage/w3up-client':
         specifier: ^17.2.0
         version: 17.2.0(encoding@0.1.13)
@@ -35,6 +41,9 @@ importers:
       keytar:
         specifier: ^7.9.0
         version: 7.9.0
+      multiformats:
+        specifier: ^13.3.2
+        version: 13.3.2
       ora:
         specifier: ^8.2.0
         version: 8.2.0

@@ -12,7 +12,7 @@ export class Session {
   constructor(pdsUrl?: string) {
     this.config = readConfig();
     const serviceUrl =
-      pdsUrl || this.config.pdsUrl || "https://atproto.storacha.network";
+      pdsUrl || this.config.pdsUrl || "https://bsky.social";
 
     try {
       const session = new CredentialSession(new URL(serviceUrl));
@@ -54,7 +54,11 @@ export class Session {
       ...this.config,
       accounts: [
         ...this.config.accounts,
-        { did: session.did, handle: session.handle },
+        {
+          did: session.did,
+          handle: session.handle,
+          serviceUrl: this.agent.serviceUrl.toString()
+        },
       ],
       pdsUrl: this.agent.serviceUrl.toString(),
       bluesky: { ...session },

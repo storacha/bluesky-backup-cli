@@ -2,6 +2,7 @@ import { AtpAgent } from "@atproto/api";
 import { Config, readConfig } from "../utils/config";
 import chalk from "chalk";
 import { Session } from "../auth/session";
+import { decodeCarToJson } from "../utils/decode";
 
 export type AccountCreationPayload = {
   email: string;
@@ -37,11 +38,17 @@ export class PdsAccountManager {
   private session: Session;
   private config: Config;
   private agent: AtpAgent;
+  private collection: string = "app.bsky.feed.post";
 
   constructor(pdsUrl?: string) {
     this.config = readConfig();
     this.session = new Session(pdsUrl);
     this.agent = this.session.getAgent();
+
+    const configPdsUrl = this.config.pdsUrl;
+    if (configPdsUrl && !configPdsUrl.includes("bsky.social")) {
+      this.collection = `${new URL(configPdsUrl).hostname}.feed.post`;
+    }
   }
 
   async validatePdsConnection() {
@@ -102,7 +109,7 @@ export class PdsAccountManager {
 
       const request = await this.agent.com.atproto.repo.createRecord({
         repo: this.agent.session?.did || "",
-        collection: `${new URL(this.config.pdsUrl as string).hostname}.feed.post`,
+        collection: this.collection,
         record,
       });
       return request.data;
@@ -111,14 +118,12 @@ export class PdsAccountManager {
     }
   }
 
-  async getPostsFromPds(limit?: number) {
+  async getPostsFromPds(did: string) {
     try {
-      const request = await this.agent.com.atproto.repo.listRecords({
-        limit: limit || 50,
-        repo: this.agent.session?.did || "",
-        collection: `${new URL(this.config.pdsUrl as string).hostname}.feed.post`,
-      });
-      return request.data.records;
+      const request = await this.agent.com.atproto.sync.getRepo({ did });
+      const data = request.data
+      if (!data) throw new Error("Couldn't retrieve CAR data")
+      return await decodeCarToJson(data)
     } catch (error) {
       throw new Error(`Failed to ${errorMessage("posts", error as Error)}`);
     }
@@ -135,19 +140,32 @@ export class PdsAccountManager {
 
   async getPostCid(uri: string): Promise<string> {
     try {
-      const [repo, rkey] = uri.split("/").slice(-2);
+      const uriParts = uri.replace('at://', '').split('/');
+
+      if (uriParts.length < 3) {
+        throw new Error(`Invalid URI format: ${uri}`);
+      }
+
+      const repo = uriParts[0];
+      const collection = uriParts[1];
+      const rkey = uriParts[2];
       const request = await this.agent.com.atproto.repo.getRecord({
         repo,
-        rkey,
-        collection: "app.bsky.feed.post",
+        collection,
+        rkey
       });
 
-      // now we can return the content identifier when it is founf
+      if (!request.data || !request.data.cid) {
+        throw new Error(`Record exists but CID not found for: ${uri}`);
+      }
+
       return request.data.cid as string;
     } catch (error) {
-      throw new Error(
-        `Failed to get ${errorMessage("post-cid", error as Error)}`,
-      );
+      const errorMsg = (error as Error).message;
+      if (errorMsg.includes("Could not locate record")) {
+        throw new Error(`Post not found: ${uri}. Make sure the post exists and you have permission to view it.`);
+      }
+      throw new Error(`Failed to get ${errorMessage("post-cid", error as Error)}`);
     }
   }
 }

@@ -60,19 +60,12 @@ export class BackupManager {
       let spinner: Ora | null = null;
 
       if (dataType === "json") {
-        const { limit } = await inquirer.prompt([
-          {
-            type: "number",
-            name: "limit",
-            message: "How many posts do you want to backup?",
-            default: 50,
-          },
-        ]);
-
         spinner = ora("Retrieving your posts...").start();
 
         try {
-          const posts = await this.pdsManager.getPostsFromPds(limit);
+          const config = readConfig();
+          const did: string = config.bluesky?.did || ""
+          const posts = await this.pdsManager.getPostsFromPds(did);
           spinner.succeed(
             `Retrieved ${posts.length} post${posts.length > 1 ? "s" : ""} from Bluesky`,
           );
@@ -175,14 +168,13 @@ export class BackupManager {
     }
   }
 
-  private async savePostsToFile(posts: Record[]): Promise<string> {
+  private async savePostsToFile(posts: any[]): Promise<string> {
     const spinner = ora("Saving posts to local file...").start();
 
     try {
       const backupDir = path.join(homedir(), "bsky-backup");
       if (!fs.existsSync(backupDir))
         fs.mkdirSync(backupDir, { recursive: true });
-
       const dateCreated = new Date()
         .toISOString()
         .replace(/:/g, "-")
@@ -191,27 +183,16 @@ export class BackupManager {
         backupDir,
         `bluesky-posts-${dateCreated}.json`,
       );
-
       const fileContent = {
         backupDate: new Date().toISOString(),
         postCount: posts.length,
-        posts: posts.map((post) => ({
-          uri: post.uri,
-          cid: post.cid,
-          // these values, `text` and `createdAt` exists.
-          // the Record type from atproto/repo/listRecords doesn't just provide a type for them.
-          // instead a verbose `value: {}` is used.
-          // @ts-ignore
-          text: post.value.text,
-          // @ts-ignore
-          createdAt: post.value.createdAt,
-        })),
+        posts: posts
       };
 
       if (posts.length > 0) {
         fs.writeFileSync(backupPath, JSON.stringify(fileContent, null, 2));
         spinner.succeed(
-          `Saved ${posts.length} post${posts.length > 1 ? "s" : ""} to ${backupPath}`,
+          `Saved data to ${backupPath}`,
         );
       } else {
         spinner.succeed(`Skipping local backup. No posts found`);
@@ -219,7 +200,7 @@ export class BackupManager {
       }
       return backupPath;
     } catch (error) {
-      spinner.fail(`Failed to save posts: ${(error as Error).message}`);
+      spinner.fail(`Failed to save data: ${(error as Error).message}`);
       throw error;
     }
   }
