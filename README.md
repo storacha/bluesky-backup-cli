@@ -44,5 +44,7 @@ bb login --pds https://your-pds.com
 
 You'll need to use the command below to create posts on your PDS and follow the next prompts
 ```shell
-bb admin create-pots
+bb admin create-posts
 ```
+
+If you logged in with your Bluesky account, and used the command above, you're pretty much just creating a from the CLI
