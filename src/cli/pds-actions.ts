@@ -4,7 +4,6 @@ import ora from "ora";
 import inquirer from "inquirer";
 import { PdsAccountManager } from "../pds/account";
 import { BlueskyAuth } from "../auth/bsky";
-import { Record } from "@atproto/api/dist/client/types/com/atproto/repo/listRecords";
 import { readConfig } from "../utils/config";
 
 export const pdsActions = (program: Command) => {
