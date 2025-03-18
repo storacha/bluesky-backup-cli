@@ -20,6 +20,8 @@
   "dependencies": {
     "@atproto/api": "^0.13.35",
     "@atproto/oauth-client-node": "^0.2.10",
+    "@ipld/car": "^5.4.0",
+    "@ipld/dag-cbor": "^9.2.2",
     "@web3-storage/w3up-client": "^17.2.0",
     "axios": "^1.7.9",
     "chalk": "^5.4.1",
@@ -27,6 +29,7 @@
     "esbuild": "^0.25.0",
     "inquirer": "^12.4.1",
     "keytar": "^7.9.0",
+    "multiformats": "^13.3.2",
     "ora": "^8.2.0",
     "standard-version": "^9.5.0"
   }

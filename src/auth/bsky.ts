@@ -1,4 +1,4 @@
-import { Config, readConfig, writeConfig } from "../utils/config";
+import { Config, DEFAULT_SERVICE_URL, readConfig, writeConfig } from "../utils/config";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import ora from "ora";
@@ -16,7 +16,7 @@ export class BlueskyAuth {
     let validServiceUrl = serviceUrl;
     if (!validServiceUrl || validServiceUrl === "undefined")
       validServiceUrl =
-        this.config.pdsUrl || "https://atproto.storacha.network";
+        this.config.pdsUrl || "https://bsky.social";
 
     this.serviceUrl = validServiceUrl;
     this.session = new Session(this.serviceUrl);
@@ -93,7 +93,11 @@ export class BlueskyAuth {
       {
         type: "input",
         name: "identifier",
-        message: `Enter your bluesky handle (e.g. user.${new URL(pdsUrl).hostname}):`,
+        message: `Enter your ${pdsUrl !== new URL(DEFAULT_SERVICE_URL)
+          ? "" :
+          "Bluesky"}handle (e.g. user.${pdsUrl.hostname !== new URL(DEFAULT_SERVICE_URL).hostname ?
+          pdsUrl.hostname :
+            new URL(DEFAULT_SERVICE_URL).hostname}):`,
         validate: (input: string) => {
           const host = new URL(pdsUrl).hostname;
           return input.endsWith(host) || input.includes(".")
@@ -104,8 +108,8 @@ export class BlueskyAuth {
       {
         type: "password",
         name: "password",
-        message: "Enter your Bluesky app password:",
         mask: true,
+        message: `Enter your ${pdsUrl !== new URL(DEFAULT_SERVICE_URL) ? "": "Bluesky app"}password:`,
       },
     ]);
 

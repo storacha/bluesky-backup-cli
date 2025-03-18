@@ -2,6 +2,7 @@ import { AtpAgent } from "@atproto/api";
 import { Config, readConfig } from "../utils/config";
 import chalk from "chalk";
 import { Session } from "../auth/session";
+import { decodeCarToJson } from "../utils/decode";
 
 export type AccountCreationPayload = {
   email: string;
@@ -111,14 +112,12 @@ export class PdsAccountManager {
     }
   }
 
-  async getPostsFromPds(limit?: number) {
+  async getPostsFromPds(did: string) {
     try {
-      const request = await this.agent.com.atproto.repo.listRecords({
-        limit: limit || 50,
-        repo: this.agent.session?.did || "",
-        collection: `${new URL(this.config.pdsUrl as string).hostname}.feed.post`,
-      });
-      return request.data.records;
+      const request = await this.agent.com.atproto.sync.getRepo({ did });
+      const data = request.data
+      if (!data) throw new Error("Couldn't retrieve CAR data")
+      return await decodeCarToJson(data)
     } catch (error) {
       throw new Error(`Failed to ${errorMessage("posts", error as Error)}`);
     }
@@ -139,7 +138,7 @@ export class PdsAccountManager {
       const request = await this.agent.com.atproto.repo.getRecord({
         repo,
         rkey,
-        collection: "app.bsky.feed.post",
+        collection: `${new URL(this.config.pdsUrl as string).hostname}.feed.post`,
       });
 
       // now we can return the content identifier when it is founf
