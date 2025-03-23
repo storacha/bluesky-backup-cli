@@ -123,7 +123,7 @@ export class BackupManager {
     filePath: string,
     dataType: "json" | "car",
   ): Promise<void> {
-    const spinner = ora("Establishing connection with Storacha. Please verify your credentials at email...").start();
+    const spinner = ora("Establishing connection with Storacha. Please verify your credentials via email.").start();
     spinner.color = "red";
 
     try {
