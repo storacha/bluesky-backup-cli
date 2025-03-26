@@ -168,16 +168,6 @@ export class StorachaAuth {
     const selectedSpace = spaces.find((space) => space.did() === spaceOption);
     if (selectedSpace) {
       await client.setCurrentSpace(selectedSpace.did());
-
-      // try {
-      //   const spinner = ora("Verifying storage provider...").start();
-      //   await client.capability.upload.list();
-      //   spinner.succeed();
-      // } catch (error) {
-      //   console.log(chalk.yellow("This space needs storage provisioning"));
-      //   await this.createStorachaSpace(client);
-      // }
-
       console.log(
         chalk.green(
           `Selected space: ${selectedSpace.name || selectedSpace.did()}`,
