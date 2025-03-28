@@ -1,17 +1,48 @@
 {
   "name": "bsky-backup-cli",
   "version": "0.0.1",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "build": "esbuild ./src/index.ts --bundle --platform=node --outfile=dist/index.js --external:keytar"
+  "description": "HOT HOT HOT backups for your Bluesky data on Storacha! 🐔",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=18.0.0"
   },
   "bin": {
     "bb": "./dist/index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "scripts": {
+    "build": "esbuild ./src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --external:keytar",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "version": "standard-version",
+    "release": "npm run version && npm publish"
+  },
+  "keywords": [
+    "bluesky",
+    "backups",
+    "storacha",
+    "web3",
+    "storage",
+    "upload",
+    "store",
+    "IPLD",
+    "UCAN",
+    "IPFS"
+  ],
+  "files": [
+    "dist"
+  ],
+  "author": "Storacha",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/storacha/bsky-backup-cli.git"
+  },
+  "homepage": "https://github.com/storacha/bsky-backup-cli#readme",
+  "bugs": {
+    "url": "https://github.com/storacha/bsky-backup-cli/issues"
+  },
   "devDependencies": {
     "@types/node": "^22.13.1",
     "ts-node": "^10.9.2",
@@ -32,5 +63,8 @@
     "multiformats": "^13.3.2",
     "ora": "^8.2.0",
     "standard-version": "^9.5.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
