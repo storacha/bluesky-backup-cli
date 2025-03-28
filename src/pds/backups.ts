@@ -23,7 +23,7 @@ export class BackupManager {
     this.storachaAuth = new StorachaAuth();
     this.config = readConfig();
   }
-  // we should check if there's any session in the config
+
   async validateLogin() {
     const config = readConfig();
     if (!config.accounts || !config.bluesky || config.accounts.length === 0) {
@@ -116,55 +116,61 @@ export class BackupManager {
     filePath: string,
     dataType: "json" | "car",
   ): Promise<void> {
-    const spinner = ora("Establishing connection with Storacha. Please verify your credentials via email.").start();
-    spinner.color = "red";
+    const config = readConfig();
+    if (!config.storacha?.email) {
+      console.log(chalk.blue("No Storacha session found. Please login first."));
+      const { proceedWithLogin } = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "proceedWithLogin",
+          message: "Would you like to login to Storacha now?",
+          default: true
+        }
+      ]);
 
-    try {
-      const client = await Client.create();
-      const account = await this.storachaAuth.login();
-      if (!client) {
-        spinner.fail("Failed to establish connection.");
+      if (!proceedWithLogin) {
+        console.log(chalk.yellow("Upload canceled."));
         return;
       }
-      spinner.succeed("Connection established");
 
-      const space = await this.storachaAuth.selectSpace(client, account);
-      spinner.start("Setting up storage space...");
-      if (!space) {
-        spinner.fail("Failed to select or create a storage space");
-        return;
+      try {
+        const client = await Client.create();
+        const account = await this.storachaAuth.login();
+
+        const space = await this.storachaAuth.selectSpace(client, account);
+        if (!space) {
+          console.log(chalk.yellow("Failed to select or create a storage space"));
+          return;
+        }
+
+        const spinner = ora(`Uploading backup from ${filePath}...`).start();
+        spinner.color = "red";
+
+        const fileName = path.basename(filePath);
+        const fileContent = fs.readFileSync(filePath);
+
+        const blob = new Blob([fileContent], {
+          type:
+            dataType === "json" ? "application/json" : "application/vnd.ipld.car",
+        });
+        const fileObject = { name: fileName, blob };
+
+        const cid = await client.uploadFile({
+          ...fileObject,
+          stream: () => blob.stream(),
+        });
+
+        spinner.succeed("Backup uploaded successfully!");
+        console.log(chalk.green(`\nBackup details:`));
+        console.log(chalk.white(` IPFS CID: ${cid}`));
+        console.log(chalk.white(` Gateway URL: https://w3s.link/ipfs/${cid}`));
+        console.log(
+          chalk.cyan("\nYou can access your file using the Gateway URL"),
+        );
+      } catch (error) {
+        console.log(chalk.yellow(`Upload failed: ${(error as Error).message}`));
+        console.log(chalk.yellow("\nYour backup is still saved locally."));
       }
-      spinner.succeed("Storage space ready");
-
-      spinner.start(`Uploading backup from ${filePath}...`);
-
-      const fileName = path.basename(filePath);
-      const fileContent = fs.readFileSync(filePath);
-
-      // create a blob from the file so we can make it compatible with what
-      // w3up-client accepts. a `File` too is accpetable though
-      const blob = new Blob([fileContent], {
-        type:
-          dataType === "json" ? "application/json" : "application/vnd.ipld.car",
-      });
-      const fileObject = { name: fileName, blob };
-
-      // we should obtain a content identtfier here
-      const cid = await client.uploadFile({
-        ...fileObject,
-        stream: () => blob.stream(),
-      });
-
-      spinner.succeed("Backup uploaded successfully!");
-      console.log(chalk.green(`\nBackup details:`));
-      console.log(chalk.white(`  IPFS CID: ${cid}`));
-      console.log(chalk.white(`  Gateway URL: https://w3s.link/ipfs/${cid}`));
-      console.log(
-        chalk.cyan("\nYou can access your file using the Gateway URL"),
-      );
-    } catch (error) {
-      spinner.fail(`Upload failed: ${(error as Error).message}`);
-      console.log(chalk.yellow("\nYour backup is still saved locally."));
     }
   }
 
@@ -242,12 +248,12 @@ export class BackupManager {
 
     const files = fs
       .readdirSync(backupDir)
-      .filter((file) => file.endsWith("json") || file.endsWith("car"))
+      .filter((file) => file.endsWith(dataType))
       .sort()
       .reverse();
 
     if (files.length === 0) {
-      console.log(chalk.yellow("No backup files found."));
+      console.log(chalk.yellow(`No ${dataType} backup files found.`));
       return;
     }
 

@@ -15,76 +15,51 @@ export class StorachaAuth {
   }
 
   async login(): Promise<Account.Account> {
-    if (this.config.storacha?.email) {
-      const spinner = ora(
-        `Logging in to Storacha with ${this.config.storacha.email}`,
-      );
-      spinner.color = "red";
-
-      try {
-        const client = await Client.create();
-        const email = this.config.storacha.email;
-        const account = Result.try(await Account.login(client, email));
-        Result.try(await account.save());
-        spinner.succeed(
-          `Successfully logged in to Storacha with ${this.config.storacha.email}`,
-        );
-        return account;
-      } catch (error) {
-        spinner.info("Couldn't auto-login, let's try manually instead");
-      }
+    let email = this.config.storacha?.email;
+    if (!email || !email.includes('@')) {
+      const response = await inquirer.prompt([
+        {
+          type: "input",
+          name: "email",
+          message: "Enter your Storacha email:",
+          validate: (input) => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(input)) {
+              return "Please enter a valid email address";
+            }
+            return true;
+          },
+        },
+      ]);
+      email = response.email;
     }
 
-    const { email } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "email",
-        message: "Enter your email:",
-        validate: (input) => {
-          if (!input.includes("@")) {
-            return "Please enter a valid email address";
-          }
-          return true;
-        },
-      },
-    ]);
-
-    const spinner = ora("Logging in to Storacha...").start();
+    const spinner = ora(`🐔 Please Check the email we sent to ${chalk.red(email)} to authorize Storacha`).start()
     spinner.color = "red";
 
     try {
       const client = await Client.create();
-      const account = Result.try(await Account.login(client, email));
-      // whether or not to include this
-      // await account.plan.wait()
-      Result.try(await account.save());
+      const loginResult = await Account.login(client, email as `${string}@${string}`);
+      if (!loginResult.ok) {
+        throw new Error('Login failed');
+      }
 
       writeConfig({
         ...this.config,
         storacha: {
           ...this.config.storacha,
-          email,
+          email: email as `${string}@${string}`,
         },
       });
+
       spinner.succeed(`Successfully logged in to Storacha with ${email}`);
-      return account;
+      return loginResult.ok as Account.Account;
     } catch (error) {
-      spinner.fail(
-        `\nFailed to login to Storacha: ${(error as Error).message}`,
-      );
-      console.log(chalk.yellow("  Troubleshooting:"));
-      console.log(chalk.yellow("  1.") + " Check your internet connection");
-      console.log(
-        chalk.yellow("  2.") + " Verify your email is registered with Storacha",
-      );
-      console.log(
-        chalk.yellow("  3.") +
-          " You may need to check your email for a verification link",
-      );
-      console.log(
-        chalk.yellow("  4.") +
-          " Ensure that you've also connected your card for billing. The free plan, at least",
-      );
+      spinner.fail(`Login failed: ${(error as Error).message}`);
+      console.log(chalk.yellow(" Troubleshooting:"));
+      console.log(chalk.yellow(" 1.") + " Check your internet connection");
+      console.log(chalk.yellow(" 2.") + " Verify your email is registered with Storacha");
+      console.log(chalk.yellow(" 3.") + " Make sure you clicked the verification link");
       throw error;
     }
   }
@@ -98,7 +73,7 @@ export class StorachaAuth {
         type: "input",
         name: "spaceName",
         message: "Enter a name for your Storacha space",
-        validate: (input) => input.length > 0 || "Space name cannot be blank",
+        validate: (input) => input.trim().length > 0 || "Space name cannot be blank",
       },
     ]);
 
