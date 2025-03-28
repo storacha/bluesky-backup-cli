@@ -3,9 +3,12 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
+export const DEFAULT_SERVICE_URL = "https://bsky.social"
+
 export type Account = {
   did: string;
   handle: string
+  serviceUrl?: string;
 }
 
 export interface Config {
@@ -26,7 +29,7 @@ export const readConfig = (): Config => {
     const data = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
     return {
       accounts: [],
-      pdsUrl: "https://atproto.storacha.network",
+      pdsUrl: DEFAULT_SERVICE_URL,
       ...data,
     };
   } catch (error) {

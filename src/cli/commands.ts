@@ -2,7 +2,7 @@
 import chalk from "chalk";
 import { BlueskyAuth } from "../auth/bsky";
 import { Command } from "commander";
-import { readConfig } from "../utils/config";
+import { readConfig, writeConfig } from "../utils/config";
 
 export const authCommands = (program: Command) => {
   program
@@ -28,7 +28,16 @@ export const authCommands = (program: Command) => {
     .description("Remove stored credentials")
     .action(async () => {
       const auth = new BlueskyAuth();
+      const config = readConfig()
+      const accounts = config.accounts
       auth.logout();
+
+      if (accounts?.length > 0) {
+       writeConfig({
+         ...config,
+         pdsUrl: accounts[0]?.serviceUrl
+       })
+      }
     });
 
   program.addHelpText(

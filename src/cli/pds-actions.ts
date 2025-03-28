@@ -4,7 +4,7 @@ import ora from "ora";
 import inquirer from "inquirer";
 import { PdsAccountManager } from "../pds/account";
 import { BlueskyAuth } from "../auth/bsky";
-import { Record } from "@atproto/api/dist/client/types/com/atproto/repo/listRecords";
+import { readConfig } from "../utils/config";
 
 export const pdsActions = (program: Command) => {
   const bluesky = new BlueskyAuth();
@@ -115,7 +115,7 @@ export const pdsActions = (program: Command) => {
             message: "What type of test posts would you like to generate?",
             choices: [
               { name: "Single test post", value: "single" },
-              { name: "Test reply to another post", value: "reply" },
+              { name: "Reply to another post", value: "reply" },
             ],
           },
         ]);
@@ -173,32 +173,16 @@ export const pdsActions = (program: Command) => {
     .action(async () => {
       try {
         const pds = await bluesky.getPdsUrl();
-
-        const { limit } = await inquirer.prompt([
-          {
-            type: "number",
-            name: "limit",
-            message: "How many posts to retrieve?",
-            default: 10,
-            required: false,
-          },
-        ]);
+        const config = readConfig();
+        const did: string = config.bluesky?.did || ""
 
         const spinner = ora("Fetching test posts...").start();
         const manager = new PdsAccountManager(pds);
-        const posts = await manager.getPostsFromPds(limit);
-        spinner.succeed(`Retrieved ${posts.length} test posts`);
+        const posts = await manager.getPostsFromPds(did);
+        spinner.succeed(`Data retrieved successfully!`);
 
-        console.log(chalk.green("\nTest Posts:"));
-        posts.forEach((post: Record, index) => {
-          console.log(
-            // @ts-ignore
-            chalk.white(`\n${index + 1}. Created at: ${post.value.createdAt}`),
-          );
-          // @ts-ignore
-          console.log(chalk.cyan(`   ${post.value.text}`));
-          console.log(chalk.gray(`   URI: ${post.uri}`));
-        });
+        console.log(chalk.green("Available Data:"));
+        console.log(posts)
       } catch (error) {
         console.error(chalk.red(`Error: ${(error as Error).message}`));
       }
