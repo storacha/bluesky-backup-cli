@@ -37,7 +37,7 @@ export class Session {
           active: Boolean(this.config.bluesky.active),
         })
         .catch((error) => {
-          console.log(`${chalk.yellow(`\nError resuming session:`, error)}`);
+          // console.log(`${chalk.yellow(`Error resuming session:`, error)}`);
         });
     }
   }

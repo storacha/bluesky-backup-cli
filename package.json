@@ -1,5 +1,5 @@
 {
-  "name": "bsky-backups-cli",
+  "name": "bsky-backup-cli",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",

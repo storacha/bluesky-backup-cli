@@ -117,23 +117,19 @@ export class BlueskyAuth {
     try {
       const session = await agent.login({ identifier, password });
       await this.session.saveSession(session.data);
-      spinner.succeed(`Successfully logged in as ${session.data.handle}`);
+      spinner.succeed(`Successfully logged in as ${chalk.blue.bold(session.data.handle)}`);
       return true;
     } catch (error) {
       spinner.fail(`Authentication failed: ${(error as Error).message}`);
-      console.log(chalk.yellow("  Troubleshooting:"));
+      console.log(chalk.yellow(" Troubleshooting:"));
       console.log(
-        chalk.yellow("  1.") +
-          " Ensure you're using an app password, not your main account password",
-      );
-      console.log(
-        chalk.yellow("  2.") +
+        chalk.yellow(" 1.") +
           " Verify your handle format (e.g., " +
           chalk.bgBlue(`user.${new URL(pdsUrl).hostname}`) +
           ")",
       );
       console.log(
-        chalk.yellow("  3.") +
+        chalk.yellow(" 2.") +
           " Check account status at: " +
           chalk.blue("https://bsky.app/settings"),
       );
@@ -154,7 +150,7 @@ export class BlueskyAuth {
         name: "did",
         message: "Select account to logout:",
         choices: accounts.map((account) => ({
-          name: `${account.handle} (${account.did})`,
+          name: `${chalk.blue(account.handle)} (${chalk.blue(account.did)})`,
           value: account.did
         })),
       },
